@@ -43,11 +43,11 @@ class Graph:
             edge_msgs = self._node_interaction(sources, targets)
         except TypeError:
             raise NameError("node_interaction function not defined")
-        aggr_edge_msgs = np.dot(targets.T, edge_msgs)
+        aggr_edge_msgs = np.dot(self.edge_targets.T, edge_msgs)
 
         # msg from interaction with neighbor averages
-        neighbor_sums = np.dot(targets.T, sources)
-        neighbor_counts = np.mean(targets.T, axis=1, keepdims=True)
+        neighbor_sums = np.dot(self.edge_targets.T, sources)
+        neighbor_counts = np.mean(self.edge_targets.T, axis=1, keepdims=True)
         neighbor_counts[neighbor_counts == 0] = 1
         neighbor_avgs = neighbor_sums / neighbor_counts
 
