@@ -1,21 +1,40 @@
+import functools
+import argparse
 import numpy as np
 from graph import Graph
 
 
-def interaction_func1(x, y):
+def node_interaction_func(x, y, scale=1):
     """Pair-wise repulsive interaction."""
-    d = np.linalg.norm(y - x)
-    return (x - y) / d / d / d  # Repulsion
+    # x, y has shape (N, 4)
+    xr = np.take(x, [0, 1], -1)
+    yr = np.take(y, [0, 1], -1)
+    d = np.linalg.norm(yr - xr)
+    return scale * (xr - yr) / d / d  # Repulsion
 
 
-def interaction_func2(x, y):
+def neighbor_interaction_func(x, y, scale=1):
     """Cohesion squared."""
-    d = np.linalg.norm(y - x)
-    return (y - x) * d
+    # x, y has shape (N, 4)
+    xr = np.take(x, [0, 1], -1)
+    yr = np.take(y, [0, 1], -1)
+    d = np.linalg.norm(yr - xr)
+    return scale * (yr - xr) * np.sqrt(d)
 
 
-def node_update_func(x, y):
-    return x + y * 0.01
+def null_interaction(x, y):
+    return np.zeros(x.shape[:-1] + (2,))
+
+
+def node_update_func(x, y, dt=1):
+    # Last dimension of x: 4, y: 2
+    xr = np.take(x, [0, 1], -1)
+    xv = np.take(x, [2, 3], -1)
+
+    xr += xv * dt + 0.5 * y * dt * dt
+    xv += y * dt
+
+    return np.concatenate([xr, xv], -1)
 
 
 def random_connection_matrix(n, m):
@@ -36,11 +55,17 @@ def random_connection_matrix(n, m):
     return edges
 
 
+def full_connection_matrix(n):
+    cm = np.ones((n, n))
+    np.fill_diagonal(cm, 0)
+    return cm
+
+
 def random_init_states(n, k, scale=1.):
     """
     Return n x k state vectors.
     """
-    return np.random.rand(n, k) * scale
+    return (np.random.rand(n, k) - 0.5) * scale
 
 
 def generate_timeseries(g, steps):
@@ -54,22 +79,43 @@ def generate_timeseries(g, steps):
 
 
 def main():
-    N = 10
-    M = 3
-    K = 2
-    STEPS = 50
-    init_states = random_init_states(N, K)
-    connection_matrix = random_connection_matrix(N, M)
+    SCALE = 10
+    init_states = random_init_states(ARGS.n, ARGS.k, SCALE)
+    connection_matrix = random_connection_matrix(ARGS.n, ARGS.m)
+    # connection_matrix = full_connection_matrix(N)
 
     g = Graph(connection_matrix, init_states)
-    g.set_node_interaction(interaction_func1)
-    g.set_neighbor_interaction(interaction_func2)
-    g.set_node_update(node_update_func)
+    g.set_node_interaction(functools.partial(node_interaction_func, scale=1))
+    # g.set_node_interaction(null_interaction)
+    g.set_neighbor_interaction(functools.partial(neighbor_interaction_func, scale=0.3))
+    # g.set_neighbor_interaction(null_interaction)
+    g.set_node_update(functools.partial(node_update_func, dt=0.1))
 
-    timeseries = generate_timeseries(g, STEPS)
+    data = []
+    for i in range(ARGS.instances):
+        timeseries = generate_timeseries(g, ARGS.steps)
+        if (i+1) % 100 == 0:
+            print(f'{i+1}/{ARGS.instances} done.')
+        data.append(timeseries)
+    print('All done.')
 
-    np.save('data.npy', timeseries)
+    data = np.asarray(data)
+    np.save('data.npy', data)
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n', type=int, default=10,
+                        help='number of particles')
+    parser.add_argument('-m', type=int, default=5,
+                        help='number of neighbors for each particle')
+    parser.add_argument('-k', type=int, default=4,
+                        help='size of state vector')
+    parser.add_argument('-s', '--steps', type=int, default=50,
+                        help='number of timesteps of a trajectory')
+    parser.add_argument('-i', '--instances', type=int, default=1,
+                        help='number of simulation instances')
+
+    ARGS = parser.parse_args()
+
     main()
