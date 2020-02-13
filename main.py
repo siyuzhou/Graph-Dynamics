@@ -1,4 +1,7 @@
+import os
 import functools
+import time
+import multiprocessing
 import argparse
 import numpy as np
 from graph import Graph
@@ -68,39 +71,63 @@ def random_init_states(n, k, scale=1.):
     return (np.random.rand(n, k) - 0.5) * scale
 
 
-def generate_timeseries(g, steps):
-    states = [g.states]
-
-    for _ in range(steps):
-        g.update()
-        states.append(g.states)
-
-    return np.array(states)
-
-
-def main():
+def simulation(_):
+    np.random.seed()
     SCALE = 10
     init_states = random_init_states(ARGS.n, ARGS.k, SCALE)
     connection_matrix = random_connection_matrix(ARGS.n, ARGS.m)
-    # connection_matrix = full_connection_matrix(N)
 
     g = Graph(connection_matrix, init_states)
     g.set_node_interaction(functools.partial(node_interaction_func, scale=1))
-    # g.set_node_interaction(null_interaction)
     g.set_neighbor_interaction(functools.partial(neighbor_interaction_func, scale=0.3))
-    # g.set_neighbor_interaction(null_interaction)
     g.set_node_update(functools.partial(node_update_func, dt=0.1))
+    states = [g.states]
 
-    data = []
-    for i in range(ARGS.instances):
-        timeseries = generate_timeseries(g, ARGS.steps)
-        if (i+1) % 100 == 0:
-            print(f'{i+1}/{ARGS.instances} done.')
-        data.append(timeseries)
-    print('All done.')
+    for _ in range(ARGS.steps):
+        g.update()
+        states.append(g.states)
 
-    data = np.asarray(data)
-    np.save('data.npy', data)
+    return np.array(states), connection_matrix
+
+
+def run_simulation(simulation, instances, processes=1, batch=100, silent=False):
+    pool = multiprocessing.Pool(processes=processes)
+    data_all = []
+    cm_all = []
+
+    remaining_instances = instances
+
+    prev_time = time.time()
+    while remaining_instances > 0:
+        n = min(remaining_instances, batch)
+        data_pool = pool.map(simulation, range(n))
+
+        data_pool, cm_pool = zip(*data_pool)
+
+        remaining_instances -= n
+        if not silent:
+            print('Simulation {}/{}... {:.1f}s'.format(instances - remaining_instances,
+                                                       instances, time.time()-prev_time))
+        prev_time = time.time()
+
+        data_all.extend(data_pool)
+        cm_all.extend(cm_pool)
+
+    return data_all, cm_all
+
+
+def main():
+    if not os.path.exists(ARGS.save_dir):
+        os.makedirs(ARGS.save_dir)
+
+    all_timeseries, all_cms = run_simulation(simulation, ARGS.instances, ARGS.processes, ARGS.batch_size)
+
+    all_position = np.take(all_timeseries, [0, 1], axis=-1)
+    all_velocity = np.take(all_timeseries, [2, 3], axis=-1)
+
+    np.save(os.path.join(ARGS.save_dir, ARGS.prefix+'_position.npy'), all_position)
+    np.save(os.path.join(ARGS.save_dir, ARGS.prefix+'_velocity.npy'), all_velocity)
+    np.save(os.path.join(ARGS.save_dir, ARGS.prefix+'_edge.npy'), all_cms)
 
 
 if __name__ == '__main__':
@@ -115,6 +142,14 @@ if __name__ == '__main__':
                         help='number of timesteps of a trajectory')
     parser.add_argument('-i', '--instances', type=int, default=1,
                         help='number of simulation instances')
+    parser.add_argument('--save-dir', type=str,
+                        help='name of the save directory')
+    parser.add_argument('--prefix', type=str, default='',
+                        help='prefix for save files')
+    parser.add_argument('--processes', type=int, default=1,
+                        help='number of parallel processes')
+    parser.add_argument('--batch-size', type=int, default=100,
+                        help='number of simulation instances for each process')
 
     ARGS = parser.parse_args()
 
