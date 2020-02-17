@@ -134,7 +134,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', type=int, default=10,
                         help='number of particles')
-    parser.add_argument('-m', type=int, default=5,
+    parser.add_argument('-m', type=str, default=5,
                         help='number of neighbors for each particle')
     parser.add_argument('-k', type=int, default=4,
                         help='size of state vector')
