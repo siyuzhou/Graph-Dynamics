@@ -47,12 +47,18 @@ class Graph:
 
         # msg from interaction with neighbor averages
         neighbor_sums = np.dot(self.edge_targets.T, sources)
+        if np.any(neighbor_sums):
+            print(neighbor_sums)
         neighbor_counts = np.sum(self.edge_targets.T, axis=1, keepdims=True)
+        
+        msg_masks = neighbor_counts.copy()
+        msg_masks[msg_masks > 0] = 1
+
         neighbor_counts[neighbor_counts == 0] = 1
         neighbor_avgs = neighbor_sums / neighbor_counts
 
         try:
-            neighbor_msgs = self._neighbor_interaction(self.states, neighbor_avgs)
+            neighbor_msgs = msg_masks * self._neighbor_interaction(self.states, neighbor_avgs)
         except TypeError:
             raise NameError("neighbor_interaction function not defined")
 

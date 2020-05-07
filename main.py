@@ -79,7 +79,8 @@ def simulation(_):
 
     g = Graph(connection_matrix, init_states)
     g.set_node_interaction(functools.partial(node_interaction_func, scale=1))
-    g.set_neighbor_interaction(functools.partial(neighbor_interaction_func, scale=0.3))
+    # g.set_neighbor_interaction(functools.partial(neighbor_interaction_func, scale=0.3))
+    
     g.set_node_update(functools.partial(node_update_func, dt=0.1))
     states = [g.states]
 
@@ -117,16 +118,15 @@ def run_simulation(simulation, instances, processes=1, batch=100, silent=False):
 
 
 def main():
+    if ARGS.m != 'y' and int(ARGS.m) > ARGS.n:
+        raise argparse.ArgumentError("neighborhood size 'm' cannot be greater than graph size 'n'")
+
     if not os.path.exists(ARGS.save_dir):
         os.makedirs(ARGS.save_dir)
 
     all_timeseries, all_cms = run_simulation(simulation, ARGS.instances, ARGS.processes, ARGS.batch_size)
 
-    all_position = np.take(all_timeseries, [0, 1], axis=-1)
-    all_velocity = np.take(all_timeseries, [2, 3], axis=-1)
-
-    np.save(os.path.join(ARGS.save_dir, ARGS.prefix+'_position.npy'), all_position)
-    np.save(os.path.join(ARGS.save_dir, ARGS.prefix+'_velocity.npy'), all_velocity)
+    np.save(os.path.join(ARGS.save_dir, ARGS.prefix+'_timeseries.npy'), all_timeseries)
     np.save(os.path.join(ARGS.save_dir, ARGS.prefix+'_edge.npy'), all_cms)
 
 
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', type=int, default=10,
                         help='number of particles')
-    parser.add_argument('-m', type=str, default=5,
+    parser.add_argument('-m', type=str, default=1,
                         help='number of neighbors for each particle')
     parser.add_argument('-k', type=int, default=4,
                         help='size of state vector')
