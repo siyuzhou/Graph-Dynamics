@@ -1,6 +1,7 @@
 import numpy as np
 
-def node_interaction_func(x, y, scale=1):
+
+def inverse_power_repulsion(x, y, scale=1):
     """Pair-wise repulsive interaction."""
     # x, y has shape (N, 4)
     xr = np.take(x, [0, 1], -1)
@@ -9,7 +10,7 @@ def node_interaction_func(x, y, scale=1):
     return scale * (xr - yr) / d / d  # Repulsion
 
 
-def neighbor_interaction_func(x, y, scale=1):
+def power_attraction(x, y, scale=1):
     """Cohesion squared."""
     # x, y has shape (N, 4)
     xr = np.take(x, [0, 1], -1)
@@ -22,7 +23,7 @@ def null_interaction(x, y):
     return np.zeros(x.shape[:-1] + (2,))
 
 
-def node_update_func(x, y, dt=1):
+def acceleration_based(x, y, dt=1):
     # Last dimension of x: 4, y: 2
     xr = np.take(x, [0, 1], -1)
     xv = np.take(x, [2, 3], -1)
@@ -31,3 +32,8 @@ def node_update_func(x, y, dt=1):
     xv += y * dt
 
     return np.concatenate([xr, xv], -1)
+
+
+node_interaction_func = inverse_power_repulsion
+neighbor_interaction_func = power_attraction
+node_update_func = acceleration_based

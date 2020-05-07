@@ -46,10 +46,10 @@ def simulation(_):
     connection_matrix = random_connection_matrix(ARGS.n, ARGS.m)
 
     g = Graph(connection_matrix, init_states)
-    g.set_node_interaction(functools.partial(node_interaction_func, scale=1))
-    g.set_neighbor_interaction(functools.partial(neighbor_interaction_func, scale=0.3))
+    g.set_node_interaction(functools.partial(node_interaction_func, scale=ARGS.scales[0]))
+    g.set_neighbor_interaction(functools.partial(neighbor_interaction_func, scale=ARGS.scales[1]))
 
-    g.set_node_update(functools.partial(node_update_func, dt=0.1))
+    g.set_node_update(functools.partial(node_update_func, dt=ARGS.dt))
     states = [g.states]
 
     for _ in range(ARGS.steps):
@@ -108,6 +108,10 @@ if __name__ == '__main__':
                         help='size of state vector')
     parser.add_argument('-s', '--steps', type=int, default=50,
                         help='number of timesteps of a trajectory')
+    parser.add_argument('--dt', type=float, default=1,
+                        help='time step unit')
+    parser.add_argument('--scales', type=float, nargs=2, default=[1, 1],
+                        help='scales for interaction functions')
     parser.add_argument('-i', '--instances', type=int, default=1,
                         help='number of simulation instances')
     parser.add_argument('--save-dir', type=str,
