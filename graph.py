@@ -47,8 +47,7 @@ class Graph:
 
         # msg from interaction with neighbor averages
         neighbor_sums = np.dot(self.edge_targets.T, sources)
-        if np.any(neighbor_sums):
-            print(neighbor_sums)
+ 
         neighbor_counts = np.sum(self.edge_targets.T, axis=1, keepdims=True)
         
         msg_masks = neighbor_counts.copy()
